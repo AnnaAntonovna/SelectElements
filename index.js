@@ -8,12 +8,12 @@ import {
     WebGLRenderer,
     Raycaster,
     Vector2,
-    Material,
     MeshLambertMaterial
   } from "three";
   import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
   import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from "three-mesh-bvh";
   import {IFCLoader} from "web-ifc-three";
+  import {IFCBUILDING} from 'web-ifc';
   //Creates the Three.js scene
   const scene = new Scene();
   
@@ -129,13 +129,20 @@ const highlightMaterial = new MeshLambertMaterial({
 const selectionMaterial = new MeshLambertMaterial({
   transparent: true,
   opacity: 0.8,
+  color: 'pink',
+  depthTest: false
+});
+
+const selectionClickMaterial = new MeshLambertMaterial({
+  transparent: true,
+  opacity: 0.7,
   color: 'blue',
   depthTest: false
 });
 
 let lastModel;
 
-function pick(event, material){
+async function pick(event, material, getProps, getIFCprops){
   const found = cast(event);
 
   if (found){
@@ -145,6 +152,33 @@ function pick(event, material){
     const id = ifcLoader.ifcManager.getExpressId(geometry, index);
 
     console.log(id);
+
+    if (getProps){
+      const props = await ifcLoader.ifcManager.getItemProperties(found.object.modelID, id);
+      console.log(props);
+      const psets = await ifcLoader.ifcManager.getPropertySets(found.object.modelID, id);
+
+      const realValues = [];
+      for(const pset of psets){
+        for (const prop of pset.HasProperties){
+          const id = prop.value;
+          const value = await ifcLoader.ifcManager.getItemProperties(found.object.modelID, id); 
+          realValues.push(value);
+        }
+
+        pset.HasProperties = realValues;
+      }
+      console.log(psets);
+    }
+
+    if(getIFCprops) {
+      const buildingsIDs = await ifcLoader.ifcManager.getAllItemsOfType(found.object.modelID, IFCBUILDING);
+      const buildingID = buildingsIDs[0];
+
+      const buildingProps = await ifcLoader.ifcManager.getItemProperties(found.object.modelID, buildingID);
+
+      console.log(buildingProps);
+    } 
 
     ifcLoader.ifcManager.createSubset({
       modelID: found.object.modelID,
@@ -161,6 +195,9 @@ function pick(event, material){
 }
 
 
-threeCanvas.onmousemove = (event) => pick(event, selectionMaterial);
-threeCanvas.ondblclick = (event) => pick(event, highlightMaterial);
+threeCanvas.onmousemove = (event) => pick(event, selectionMaterial, false, false);
+threeCanvas.ondblclick = (event) => pick(event, highlightMaterial, true, false);
+threeCanvas.onclick = (event) => pick(event, selectionClickMaterial, false, true);
+
+
 

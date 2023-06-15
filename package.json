@@ -18,6 +18,7 @@
   "dependencies": {
     "three": "^0.135.0",
     "three-mesh-bvh": "^0.5.23",
+    "web-ifc": "^0.0.41",
     "web-ifc-three": "^0.0.125"
   }
 }
